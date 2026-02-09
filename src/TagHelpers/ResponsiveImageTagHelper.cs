@@ -10,7 +10,7 @@ using SixLabors.ImageSharp.Processing;
 namespace Respond.TagHelpers;
 
 [HtmlTargetElement("pic")]
-public class ResponsivePictureTagHelper(IWebHostEnvironment environment, IHttpContextAccessor httpContextAccessor)
+public class ResponsiveImageTagHelper(IWebHostEnvironment environment, IHttpContextAccessor httpContextAccessor)
     : TagHelper
 {
     public required string Src { get; set; }
