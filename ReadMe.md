@@ -4,11 +4,11 @@ This provides a tag helper for creating a `srcset` of responsive images in **web
 
 The ideal image size is 2048px width by 1152px height. This creates a 16:9 widescreen ratio (2048 × 1152 = 16:9).
 
-** There are 2 versions of this and the first is recommended.**
+**There are 2 versions of this and the first is recommended.**
 
 ## Version 1 - Node
 
-Images are created at buld time.
+Images are created at build time based on the breakpoints of '576, 768, 992, 1200, 1400' (Bootstrap's default).
 
 ```bash
 cd client
@@ -24,9 +24,20 @@ Use the tag helper:
 <picture class="img-fluid" src="growth.jpg" alt="An image depicting growth"></picture>
 ```
 
-## Version 2- .NET
+Include Child content
 
-Images are created at runtime.
+```bash
+<figure class="figure">
+    <picture class="img-fluid" src="growth.jpg" alt="An image depicting growth">
+        <figcaption class="figure-caption">A caption for the above image.</figcaption>
+    </picture>
+</figure>
+
+```
+
+## Version 2 - .NET
+
+Images are created at runtime. **Only use this version if you can't use the node version**.
 
 The tag helper will create a subset of images based on the breakpoints of '576, 768, 992, 1200, 1400' (Bootstrap's default).
 
@@ -55,4 +66,13 @@ In both cases, `IHttpContextAccessor` will need to be available:
 ```bash
 builder.Services.AddHttpContextAccessor();
 ```
+
+### Cachebusting
+
+In node, the image file content is hashed and included in  wwwroot/img/responsive/img-manifest.json file.
+
+In the taghelper, the hash lookup takes 0.02ms per request.
+
+This is the most performant approach, perfect for production sites of any scale.
+
 

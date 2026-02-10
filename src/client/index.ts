@@ -1,14 +1,17 @@
 #!/usr/bin/env bun
 
 import sharp from 'sharp';
-import { readdir, mkdir } from 'fs/promises';
+import { readdir, mkdir, readFile, writeFile } from 'fs/promises';
 import { join, parse, extname } from 'path';
 import { existsSync } from 'fs';
+import { createHash } from 'crypto';
 
 const INPUT_DIR = '../wwwroot/img';
 const OUTPUT_DIR = '../wwwroot/img/responsive';
+const MANIFEST_FILE = '../wwwroot/img/responsive/img-manifest.json';
 const WIDTHS = [576, 768, 992, 1200, 1400];
 const FORMATS = ['jpg', 'webp', 'avif'] as const;
+const HASH_LENGTH = 8; // Use first 8 characters of hash
 
 interface ImageInfo {
     path: string;
@@ -16,6 +19,34 @@ interface ImageInfo {
     ext: string;
     width: number;
     height: number;
+    hash: string;
+}
+
+interface HashManifest {
+    [fileName: string]: string;
+}
+
+async function calculateFileHash(filePath: string): Promise<string> {
+    const fileBuffer = await readFile(filePath);
+    const hash = createHash('sha256').update(fileBuffer).digest('hex');
+    return hash.substring(0, HASH_LENGTH);
+}
+
+async function saveHashManifest(imageInfos: ImageInfo[]): Promise<void> {
+    const manifest: HashManifest = {};
+
+    for (const info of imageInfos) {
+        const fileName = `${info.name}${info.ext}`;
+        manifest[fileName] = info.hash;
+    }
+
+    try {
+        await writeFile(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
+        console.log(`\n📄 Hash manifest saved to: ${MANIFEST_FILE}`);
+        console.log(`   Contains hashes for ${Object.keys(manifest).length} image(s)`);
+    } catch (error) {
+        console.error(`❌ Failed to save hash manifest:`, error);
+    }
 }
 
 async function getImageInfo(imagePath: string): Promise<ImageInfo | null> {
@@ -28,12 +59,16 @@ async function getImageInfo(imagePath: string): Promise<ImageInfo | null> {
             return null;
         }
 
+        // Calculate hash for cache busting
+        const hash = await calculateFileHash(imagePath);
+
         return {
             path: imagePath,
             name,
             ext,
             width: metadata.width,
             height: metadata.height,
+            hash,
         };
     } catch (error) {
         console.error(`❌ Error reading ${imagePath}:`, error);
@@ -42,7 +77,7 @@ async function getImageInfo(imagePath: string): Promise<ImageInfo | null> {
 }
 
 async function processImage(imageInfo: ImageInfo): Promise<void> {
-    console.log(`\n📸 Processing: ${imageInfo.name}${imageInfo.ext}`);
+    console.log(`\n📸 Processing: ${imageInfo.name}${imageInfo.ext} (hash: ${imageInfo.hash})`);
 
     // Check if original image already exists in generated folder
     const standardOutputPath = join(OUTPUT_DIR, `${imageInfo.name}${imageInfo.ext}`);
@@ -143,6 +178,9 @@ async function main() {
     for (const imageInfo of imageInfos) {
         await processImage(imageInfo);
     }
+
+    // Save hash manifest
+    await saveHashManifest(imageInfos);
 
     console.log('\n✅ Image processing complete!\n');
 }
